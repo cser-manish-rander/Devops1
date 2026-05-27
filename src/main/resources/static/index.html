@@ -14,10 +14,20 @@
 <body>
   <div id="info">
     Score: <span id="score">0</span>
+    High: <span id="high">0</span>
     <button id="start">Start</button>
+    <button id="pause">Pause</button>
     <button id="restart">Restart</button>
   </div>
   <canvas id="game" width="400" height="400"></canvas>
+  <div id="touch-controls" aria-hidden="true">
+    <button id="up">▲</button>
+    <div>
+      <button id="left">◀</button>
+      <button id="right">▶</button>
+    </div>
+    <button id="down">▼</button>
+  </div>
 
   <script>
     const canvas = document.getElementById('game');
@@ -26,23 +36,29 @@
     const startBtn = document.getElementById('start');
     const restartBtn = document.getElementById('restart');
 
-    const grid = 20;
-    const cols = canvas.width / grid;
-    const rows = canvas.height / grid;
+    const baseGrid = 20;
+    let grid = baseGrid;
+    let cols = Math.floor(canvas.width / grid);
+    let rows = Math.floor(canvas.height / grid);
 
     let snake;
     let food;
     let dir;
     let running = false;
     let loopId;
+    let speed = 120; // ms per tick
+    let paused = false;
 
     function reset() {
+      resizeCanvas();
       snake = [{x: Math.floor(cols/2), y: Math.floor(rows/2)}];
       dir = {x: 0, y: 0};
       placeFood();
       scoreEl.textContent = '0';
       running = false;
-      if(loopId) cancelAnimationFrame(loopId);
+      paused = false;
+      speed = 120;
+      if(loopId) clearTimeout(loopId);
       draw();
     }
 
@@ -100,14 +116,16 @@
     }
 
     function loop(){
+      if(!running || paused) return;
       update();
       draw();
-      if(running) loopId = setTimeout(loop, 100);
+      loopId = setTimeout(loop, speed);
     }
 
     function start(){
       if(dir.x===0 && dir.y===0){ dir = {x:1,y:0}; }
       running = true;
+      paused = false;
       loop();
     }
 
@@ -118,7 +136,13 @@
 
     function gameOver(){
       running = false;
-      alert('Game Over. Score: ' + scoreEl.textContent);
+      const score = parseInt(scoreEl.textContent, 10);
+      const high = parseInt(localStorage.getItem('snake_high')||0,10);
+      if(score>high) localStorage.setItem('snake_high', score);
+      document.getElementById('high').textContent = Math.max(score, high);
+      setTimeout(()=>{
+        alert('Game Over. Score: ' + score);
+      },10);
     }
 
     document.addEventListener('keydown', e => {
@@ -127,11 +151,47 @@
       if(key==='ArrowDown' && dir.y===0){ dir = {x:0,y:1}; }
       if(key==='ArrowLeft' && dir.x===0){ dir = {x:-1,y:0}; }
       if(key==='ArrowRight' && dir.x===0){ dir = {x:1,y:0}; }
-      if(key===' '){ if(!running) start(); }
+      if(key===' '){ if(!running) start(); else { paused = !paused; if(!paused) loop(); } }
     });
+
+    // touch controls
+    document.getElementById('up').addEventListener('click', ()=>{ if(dir.y===0) dir={x:0,y:-1}; if(!running) start();});
+    document.getElementById('down').addEventListener('click', ()=>{ if(dir.y===0) dir={x:0,y:1}; if(!running) start();});
+    document.getElementById('left').addEventListener('click', ()=>{ if(dir.x===0) dir={x:-1,y:0}; if(!running) start();});
+    document.getElementById('right').addEventListener('click', ()=>{ if(dir.x===0) dir={x:1,y:0}; if(!running) start();});
 
     startBtn.addEventListener('click', () => start());
     restartBtn.addEventListener('click', () => restart());
+    document.getElementById('pause').addEventListener('click', ()=>{
+      if(!running) return;
+      paused = !paused;
+      document.getElementById('pause').textContent = paused ? 'Resume' : 'Pause';
+      if(!paused) loop();
+    });
+
+    function resizeCanvas(){
+      // make canvas fit viewport but keep square
+      const size = Math.min(window.innerWidth - 40, window.innerHeight - 140, 600);
+      canvas.width = size;
+      canvas.height = size;
+      // recalc grid to keep cells roughly same pixel size
+      grid = Math.max(8, Math.floor(size / 20));
+      cols = Math.floor(canvas.width / grid);
+      rows = Math.floor(canvas.height / grid);
+    }
+
+    window.addEventListener('resize', ()=>{
+      const oldHead = snake && snake[0] ? {...snake[0]} : null;
+      resizeCanvas();
+      if(oldHead){
+        // clamp snake positions to new bounds
+        snake = snake.map(s => ({x: Math.min(s.x, cols-1), y: Math.min(s.y, rows-1)}));
+      }
+      draw();
+    });
+
+    // load high score
+    document.getElementById('high').textContent = localStorage.getItem('snake_high')||0;
 
     reset();
   </script>
