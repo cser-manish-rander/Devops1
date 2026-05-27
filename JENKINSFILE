@@ -1,44 +1,53 @@
 pipeline {
     agent any
-    tools {
-        jdk 'JDK17'
-        maven 'Maven3'
-    }
+
     environment {
+        JAVA_HOME = 'C:\\Program Files\\Java\\jdk-21.0.11'
+        MAVEN_HOME = 'C:\\Program Files\\apache-maven-3.9.12'
+        PATH = "${JAVA_HOME}\\bin;${MAVEN_HOME}\\bin;${env.PATH}"
+
         IMAGE_NAME = "snake-game"
         CONTAINER_NAME = "snake-container"
     }
+
     stages {
+
         stage('Clone Repository') {
             steps {
                 git 'https://github.com/cser-manish-rander/Devops1.git'
             }
         }
+
         stage('Build Maven Project') {
             steps {
                 bat 'mvn clean package'
             }
         }
+
         stage('Build Docker Image') {
             steps {
                 bat 'docker build -t %IMAGE_NAME% .'
             }
         }
+
         stage('Remove Old Container') {
             steps {
-                bat 'docker rm -f %CONTAINER_NAME% || exit 0'
+                bat 'docker rm -f %CONTAINER_NAME%'
             }
         }
+
         stage('Run Container') {
             steps {
-                bat 'docker run -d --name %CONTAINER_NAME% %IMAGE_NAME%'
+                bat 'docker run -d --name %CONTAINER_NAME% -p 8083:8080 %IMAGE_NAME%'
             }
         }
     }
+
     post {
         success {
             echo 'Pipeline executed successfully!'
         }
+
         failure {
             echo 'Pipeline failed!'
         }
