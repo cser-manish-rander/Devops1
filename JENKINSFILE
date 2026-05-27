@@ -1,35 +1,34 @@
 pipeline {
     agent any
 
-    tools {
-        maven 'Maven'
-        jdk 'JDK21'
+    environment {
+        IMAGE_NAME = "snake-game"
+        CONTAINER_NAME = "snake-container"
     }
 
     stages {
 
-        stage('Git Clone') {
+        stage('Clone Repository') {
             steps {
-                git branch: 'main',
-                url: 'YOUR_GITHUB_URL'
+                git 'https://github.com/cser-manish-rander/Devops1.git'
             }
         }
 
-        stage('Maven Build') {
+        stage('Build Docker Image') {
             steps {
-                bat 'mvn clean package'
+                bat 'docker build -t %IMAGE_NAME% .'
             }
         }
 
-        stage('Docker Build') {
+        stage('Remove Old Container') {
             steps {
-                bat 'docker build -t snakegame .'
+                bat 'docker rm -f %CONTAINER_NAME% || exit 0'
             }
         }
 
-        stage('Docker Run') {
+        stage('Run Container') {
             steps {
-                bat 'docker run -d -p 8080:8080 snakegame'
+                bat 'docker run -d --name %CONTAINER_NAME% -p 8083:8080 %IMAGE_NAME%'
             }
         }
     }
